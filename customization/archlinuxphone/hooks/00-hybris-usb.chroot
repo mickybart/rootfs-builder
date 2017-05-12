@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# hybris-usb
+
+ln -s /usr/lib/systemd/system/usb-tethering.service /etc/systemd/system/multi-user.target.wants/

@@ -1,0 +1,7 @@
+hybris-usb
+schroot-hybris schroot-droid
+systemd-legacy systemd-legacy-libsystemd systemd-legacy-sysvcompat
+mesa-hybris
+hybris-android-headers
+libhybris-ext-git libhybris-ext-libgl-git libhybris-ext-wayland-egl-git
+hybris-ready
