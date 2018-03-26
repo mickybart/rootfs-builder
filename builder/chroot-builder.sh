@@ -76,6 +76,11 @@ sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /et
 # Install AUR helper (pacaur)
 if [ $ARMHOST -eq 0 ]; then
 	echo "(chroot) We can't setup anything relative to AUR inside qemu. Fallback to pacman !"
+	echo "(chroot) aur-helper.sh script will be copied to the home of $SUDO_USER"
+	eval cp $PWD/builder/aur-helper.sh /home/$SUDO_USER/ $OUTPUT_FILTER
+	echo "sh ~/aur-helper.sh install $AURHELPER && rm -f ~/aur-{helper,install}.sh" > /home/$SUDO_USER/aur-install.sh
+	eval chown $SUDO_USER /home/$SUDO_USER/aur-install.sh $OUTPUT_FILTER
+	eval chmod +x /home/$SUDO_USER/aur-install.sh $OUTPUT_FILTER
 else
 	echo "(chroot) Installing AUR helper ($AURHELPER)"
 	eval sudo -u $SUDO_USER -i -- sh $SH_SET $PWD/builder/aur-helper.sh install $AURHELPER $OUTPUT_FILTER
