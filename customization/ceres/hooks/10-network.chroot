@@ -1,0 +1,33 @@
+# Emulator network
+
+cat << EOF > /etc/netctl/eth0
+Description='Android emulator (eth0)'
+Interface=eth0
+Connection=ethernet
+IP=static
+Address=('10.0.2.15/24')
+Gateway='10.0.2.2'
+DNS=('10.0.2.3' '10.0.2.4' '10.0.2.5')
+EOF
+
+cat << EOF > /etc/systemd/system/netctl\@eth0.service
+.include /usr/lib/systemd/system/netctl@.service
+
+[Unit]
+Description=Android emulator (eth0)
+BindsTo=sys-subsystem-net-devices-eth0.device
+After=sys-subsystem-net-devices-eth0.device
+EOF
+
+ln -s '/etc/systemd/system/netctl@eth0.service' '/etc/systemd/system/multi-user.target.wants/netctl@eth0.service'
+
+# systemd-resolved (disable)
+rm -f /usr/lib/systemd/system/systemd-resolved.service
+rm -f /etc/resolv.conf
+touch /etc/resolv.conf
+
+# inet group to support kernel with CONFIG_ANDROID_PARANOID_NETWORK=y
+groupadd -g 3003 inet
+gpasswd -a root inet
+gpasswd -a alarm inet
+
