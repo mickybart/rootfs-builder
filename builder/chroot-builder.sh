@@ -6,6 +6,7 @@ set -e
 # $1 : Debug mode ?
 # $2 : Distcc master ?
 # $3 : Makeflags ?
+# $4 : ARM Host ?
 
 # $1 is used to pass DEBUG flag (0: no debug, else: debug)
 if [ ${1-0} -eq 0 ]; then
@@ -30,6 +31,9 @@ if [ "$MAKEFLAGS" == "0" ]; then
 		MAKEFLAGS="-j2"
 	fi
 fi
+
+# $4 is used to know if we are building the image from an ARM host or not
+ARMHOST=$4
 
 AURHELPER=pacaur
 ADDITIONAL_BASE_PACKAGES="base-devel git rsync vim bash-completion"
@@ -70,8 +74,12 @@ echo "(chroot) sudo configuration"
 sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
 
 # Install AUR helper (pacaur)
-echo "(chroot) Installing AUR helper ($AURHELPER)"
-eval sudo -u $SUDO_USER -i -- sh $SH_SET $PWD/builder/aur-helper.sh install $AURHELPER $OUTPUT_FILTER
+if [ $ARMHOST -eq 0 ]; then
+	echo "(chroot) We can't setup anything relative to AUR inside qemu. Fallback to pacman !"
+else
+	echo "(chroot) Installing AUR helper ($AURHELPER)"
+	eval sudo -u $SUDO_USER -i -- sh $SH_SET $PWD/builder/aur-helper.sh install $AURHELPER $OUTPUT_FILTER
+fi
 
 # Install package-lists/*.chroot
 echo "(chroot) Installing package-lists/*.chroot"
@@ -79,7 +87,11 @@ echo ' => /!\ Can be long if some packages need to be compiled from AUR. Please 
 AURHELPER_FLAGS=$(sh builder/aur-helper.sh getflags $AURHELPER)
 for file in $(find package-lists/ -name "*.chroot" | sort); do
 	echo " => from $file"
-	eval sudo -u $SUDO_USER -i -- $AURHELPER -S $AURHELPER_FLAGS $(cat $file | egrep -v '^#' | tr '\n' ' ') $OUTPUT_FILTER
+	if [ $ARMHOST -eq 0 ]; then
+		eval pacman -S --noconfirm $(cat $file | egrep -v '^#' | tr '\n' ' ') $OUTPUT_FILTER
+	else
+		eval sudo -u $SUDO_USER -i -- $AURHELPER -S $AURHELPER_FLAGS $(cat $file | egrep -v '^#' | tr '\n' ' ') $OUTPUT_FILTER
+	fi
 done
 
 # chroot scripts
@@ -94,7 +106,9 @@ echo "(chroot) Cleaning up"
 
 echo " => downloaded packages"
 rm -f /var/cache/pacman/pkg/*.tar.xz
-eval sudo -u $SUDO_USER -i -- sh $SH_SET $PWD/builder/aur-helper.sh cleanup $AURHELPER $OUTPUT_FILTER
+if [ $ARMHOST -ne 0 ]; then
+	eval sudo -u $SUDO_USER -i -- sh $SH_SET $PWD/builder/aur-helper.sh cleanup $AURHELPER $OUTPUT_FILTER
+fi
 
 echo " => MAKEFLAGS unconfiguration"
 sed -i "s/^MAKEFLAGS=.*/#MAKEFLAGS=\"-j2\"/" /etc/makepkg.conf

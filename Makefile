@@ -4,6 +4,7 @@ DEBUG ?= 0
 DISTCC ?= 0
 MAKEFLAGS ?= 0
 STACK ?= halium
+IMGSIZE ?= 2048
 
 ARMHOST=$(shell [ $(shell uname -m) == "armv7l" ] && echo 1 || echo 0 )
 
@@ -34,7 +35,7 @@ all: $(ARCHLINUX_ROOTFS)
 
 $(ARCHLINUX_ROOTFS): $(SUDO) $(BUILDDIR) .rootfs
 	$(info Building $(ARCHLINUX_ROOTFS))
-	@$(SUDO) tar czf $@ -C $(BUILDDIR) .
+	@$(SUDO) bsdtar czf $@ -C $(BUILDDIR) .
 	@$(SUDO) chown $(USER):$(shell id -g -n $(USER)) $@
 	@echo "Completed: $(ARCHLINUX_ROOTFS)"
 
@@ -42,28 +43,36 @@ $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE): $(SRCDIR)
 	$(info Downloading GNU/Linux Image: $(ARCHLINUX_SYSTEM_IMAGE_FILE))
 	@curl -L $(ARCHLINUX_SYSTEM_IMAGE_URL) -o $@
 
+build.img:
+	$(info Creating build.img)
+	@dd if=/dev/zero of=build.img bs=1M count=$(IMGSIZE)
+	@mkfs.ext4 build.img
+
 .extract: $(SUDO) $(BUILDDIR) $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE)
 	$(info Extracting $(ARCHLINUX_SYSTEM_IMAGE_FILE))
-	@$(SUDO) tar --numeric-owner -xzf $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE) -C $(BUILDDIR) 2> /dev/null
+	@$(SUDO) bsdtar --numeric-owner -xzf $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE) -C $(BUILDDIR)
 	@touch .extract
 
-.mount: .extract mount
+.mount: mount
 	@touch .mount
 
-.umount: .mount umount
+.umount: umount
 	@touch .umount
 
-.patch-rootfs: $(SUDO) $(BUILDDIR) .mount
+.mount-build: $(SUDO) build.img
+	@$(SUDO) mount -o loop build.img $(BUILDDIR)
+	@touch .mount-build
+
+.patch-rootfs: $(SUDO) $(BUILDDIR)
 	$(info Patching rootfs)
-	@$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/chroot-builder.sh $(DEBUG) "$(DISTCC)" "$(MAKEFLAGS)"
+	@$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/chroot-builder.sh $(DEBUG) "$(DISTCC)" "$(MAKEFLAGS)" "$(ARMHOST)"
 	@touch .patch-rootfs
 
-.rootfs: .patch-rootfs .umount
+.rootfs: build.img .mount-build .extract .mount .patch-rootfs .umount
 	@touch .rootfs
 
-.mount-manual: $(SUDO) $(QEMU) $(QEMU64) $(BUILDDIR) $(CUSTOMIZATION) $(BUILDER) .extract
+.mount-manual: $(SUDO) $(QEMU) $(QEMU64) $(BUILDDIR) $(CUSTOMIZATION) $(BUILDER)
 	$(info Preparing the build)
-	@$(SUDO) mount --bind $(BUILDDIR) $(BUILDDIR)
 	@$(SUDO) mount --bind /dev $(BUILDDIR)/dev
 	@$(SUDO) mount --bind /proc $(BUILDDIR)/proc
 	@$(SUDO) mount --bind /sys $(BUILDDIR)/sys
@@ -78,7 +87,7 @@ $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE): $(SRCDIR)
 	fi
 	@touch .mount-manual
 
-mount: .mount-manual
+mount: .mount-build .mount-manual
 
 umount: $(SUDO) $(BUILDDIR)
 	$(info Cleaning up the build)
@@ -86,13 +95,13 @@ umount: $(SUDO) $(BUILDDIR)
 	@$(SUDO) umount $(BUILDDIR)/proc
 	@$(SUDO) umount $(BUILDDIR)/sys
 	@$(SUDO) umount $(BUILDDIR)/tmp
-	@$(SUDO) umount $(BUILDDIR)
 	@$(SUDO) mv $(BUILDDIR)/etc/resolv.conf.bak $(BUILDDIR)/etc/resolv.conf
 	@$(SUDO) rm -rf $(BUILDDIR)/home/.customization
 	@if [ $(ARMHOST) -eq 0 ]; then \
 		$(SUDO) rm $(BUILDDIR)$(QEMU) ;\
 		$(SUDO) rm $(BUILDDIR)$(QEMU64) ;\
 	fi
+	@$(SUDO) umount $(BUILDDIR)
 	@rm -f .mount-manual
 
 $(SRCDIR):
@@ -105,9 +114,10 @@ $(BUILDDIR):
 
 clean: $(SUDO)
 	$(shell [ -f .mount-manual ] && make umount )
-	$(SUDO) rm -rf $(BUILDDIR)
+	rm -f build.img
 	rm -f .extract
 	rm -f .mount
+	rm -f .mount-build
 	rm -f .umount
 	rm -f .patch-rootfs
 	rm -f .rootfs
