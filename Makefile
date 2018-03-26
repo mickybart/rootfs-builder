@@ -45,8 +45,8 @@ $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE): $(SRCDIR)
 
 build.img:
 	$(info Creating build.img)
-	@dd if=/dev/zero of=build.img bs=1M count=$(IMGSIZE)
-	@mkfs.ext4 build.img
+	@dd if=/dev/zero of=build.img bs=1M count=$(IMGSIZE) > /dev/null 2>/dev/null
+	@mkfs.ext4 build.img > /dev/null 2>/dev/null
 
 .extract: $(SUDO) $(BUILDDIR) $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE)
 	$(info Extracting $(ARCHLINUX_SYSTEM_IMAGE_FILE))
