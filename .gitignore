@@ -1,0 +1,11 @@
+src/
+*.rootfs.tar.gz
+build/
+build.img
+.extract
+.mount
+.patch-rootfs
+.rootfs
+.umount
+.manual-mount
+.mount-build
