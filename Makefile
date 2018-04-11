@@ -2,9 +2,10 @@
 
 DEBUG ?= 0
 DISTCC ?= 0
-MAKEFLAGS ?= 0
+JMAKEFLAGS ?= 0
 STACK ?= halium
 IMGSIZE ?= 2048
+AUR ?= 1
 
 ARMHOST=$(shell [ $(shell uname -m) == "armv7l" ] && echo 1 || echo 0 )
 
@@ -65,7 +66,7 @@ build.img:
 
 .patch-rootfs: $(SUDO) $(BUILDDIR)
 	$(info Patching rootfs)
-	@$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/chroot-builder.sh $(DEBUG) "$(DISTCC)" "$(MAKEFLAGS)" "$(ARMHOST)"
+	@$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/chroot-builder.sh $(DEBUG) "$(DISTCC)" $(JMAKEFLAGS) $(ARMHOST) $(AUR)
 	@touch .patch-rootfs
 
 .rootfs: build.img .mount-build .extract .mount .patch-rootfs .umount
@@ -84,6 +85,7 @@ build.img:
 	@if [ $(ARMHOST) -eq 0 ]; then \
 		$(SUDO) cp $(QEMU) $(BUILDDIR)/usr/bin/ ;\
 		$(SUDO) cp $(QEMU64) $(BUILDDIR)/usr/bin/ ;\
+		$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/sudo-workaround.sh $(DEBUG) install ;\
 	fi
 	@touch .mount-manual
 
@@ -91,6 +93,9 @@ mount: .mount-build .mount-manual
 
 umount: $(SUDO) $(BUILDDIR)
 	$(info Cleaning up the build)
+	@if [ $(ARMHOST) -eq 0 ]; then \
+		$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/sudo-workaround.sh $(DEBUG) uninstall ;\
+	fi
 	@$(SUDO) umount $(BUILDDIR)/dev
 	@$(SUDO) umount $(BUILDDIR)/proc
 	@$(SUDO) umount $(BUILDDIR)/sys

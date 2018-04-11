@@ -7,9 +7,11 @@ set -e
 # $2 : Distcc master ?
 # $3 : Makeflags ?
 # $4 : ARM Host ?
+# $5 : AUR ?
 
 # $1 is used to pass DEBUG flag (0: no debug, else: debug)
-if [ ${1-0} -eq 0 ]; then
+DEBUG=${1-0}
+if [ $DEBUG -eq 0 ]; then
 	OUTPUT_FILTER="&> /dev/null"
 	SH_SET="-e"
 else
@@ -35,7 +37,9 @@ fi
 # $4 is used to know if we are building the image from an ARM host or not
 ARMHOST=$4
 
+AUR=$5
 AURHELPER=pacaur
+
 ADDITIONAL_BASE_PACKAGES="base-devel git rsync vim bash-completion"
 SUDO_USER=alarm
 
@@ -70,12 +74,18 @@ if [ "$DISTCC" != "0" ]; then
 fi
 
 # Sudo - (wheel group will be able to request high privileges without password. alarm is on this group and will permit to support AUR packages installation)
-echo "(chroot) sudo configuration"
-sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
+if [ $AUR -ne 0 ]; then
+	echo "(chroot) sudo configuration"
+	sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
+	if [ $ARMHOST -eq 0 ]; then
+		echo "(chroot) sudo workaround in qemu context"
+		eval "sh $PWD/builder/sudo-workaround.sh $DEBUG install" $OUTPUT_FILTER
+	fi
+fi
 
 # Install AUR helper (pacaur)
-if [ $ARMHOST -eq 0 ]; then
-	echo "(chroot) We can't setup anything relative to AUR inside qemu. Fallback to pacman !"
+if [ $AUR -eq 0 ]; then
+	echo "(chroot) We will not setup anything relative to AUR. Fallback to pacman !"
 	echo "(chroot) aur-helper.sh script will be copied to the home of $SUDO_USER"
 	eval cp $PWD/builder/aur-helper.sh /home/$SUDO_USER/ $OUTPUT_FILTER
 	echo "sh ~/aur-helper.sh install $AURHELPER && rm -f ~/aur-{helper,install}.sh" > /home/$SUDO_USER/aur-install.sh
@@ -92,7 +102,7 @@ echo ' => /!\ Can be long if some packages need to be compiled from AUR. Please 
 AURHELPER_FLAGS=$(sh builder/aur-helper.sh getflags $AURHELPER)
 for file in $(find package-lists/ -name "*.chroot" | sort); do
 	echo " => from $file"
-	if [ $ARMHOST -eq 0 ]; then
+	if [ $AUR -eq 0 ]; then
 		eval pacman -S --noconfirm $(cat $file | egrep -v '^#' | tr '\n' ' ') $OUTPUT_FILTER
 	else
 		eval sudo -u $SUDO_USER -i -- $AURHELPER -S $AURHELPER_FLAGS $(cat $file | egrep -v '^#' | tr '\n' ' ') $OUTPUT_FILTER
@@ -111,7 +121,7 @@ echo "(chroot) Cleaning up"
 
 echo " => downloaded packages"
 rm -f /var/cache/pacman/pkg/*.tar.xz
-if [ $ARMHOST -ne 0 ]; then
+if [ $AUR -ne 0 ]; then
 	eval sudo -u $SUDO_USER -i -- sh $SH_SET $PWD/builder/aur-helper.sh cleanup $AURHELPER $OUTPUT_FILTER
 fi
 

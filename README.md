@@ -3,19 +3,11 @@
 ## Dependencies
 
 ### build from x86_64
-read: https://wiki.archlinux.org/index.php/Raspberry_Pi#QEMU_chroot
 
 ```
-Install binfmt-support and qemu-user-static from AUR
+Install binfmt-qemu-static and qemu-user-static from AUR
 
-systemctl enable binfmt-support
-systemctl start binfmt-support
-
-update-binfmts --display qemu-arm
-update-binfmts --display qemu-aarch64
-
-update-binfmts --enable qemu-arm
-update-binfmts --enable qemu-aarch64
+systemctl enable --now systemd-binfmt
 ```
 
 ### build from ARM with distcc cross-compilation on x86_64
@@ -40,6 +32,12 @@ If you want to set a specific MAKEFLAGS
 
 ```
 make MAKEFLAGS="-j6"
+```
+
+If you want to not install AUR helper and packages
+
+```
+make AUR=0
 ```
 
 ### Build (debug mode)
