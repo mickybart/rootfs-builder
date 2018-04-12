@@ -24,6 +24,12 @@ QEMU=
 QEMU64=
 endif
 
+ifneq ($(DEBUG),0)
+  HIDE=
+else
+  HIDE=@
+endif
+
 ARCHLINUX_OTA_ARCH=armv7
 ARCHLINUX_SYSTEM_IMAGE_FILE=ArchLinuxARM-$(ARCHLINUX_OTA_ARCH)-latest.tar.gz
 ARCHLINUX_SYSTEM_IMAGE_URL=https://archlinuxarm.org/os/$(ARCHLINUX_SYSTEM_IMAGE_FILE)
@@ -32,106 +38,121 @@ SRC_ARCHLINUX_SYSTEM_IMAGE_FILE=$(SRCDIR)/$(ARCHLINUX_SYSTEM_IMAGE_FILE)
 
 ARCHLINUX_ROOTFS=$(STACK).rootfs.tar.gz
 
-all: $(ARCHLINUX_ROOTFS)
+.PHONY : all mount umount mount-build umount-build extract image tgz
 
-$(ARCHLINUX_ROOTFS): $(SUDO) $(BUILDDIR) .rootfs
+all: image
+
+tgz: | .image .mount-build $(ARCHLINUX_ROOTFS) umount-build
+
+image: $(SUDO) $(BUILDDIR) | build.img .mount-build .extract .mount .rootfs .umount
+	$(HIDE)touch .image
+
+$(ARCHLINUX_ROOTFS):
 	$(info Building $(ARCHLINUX_ROOTFS))
-	@$(SUDO) bsdtar czf $@ -C $(BUILDDIR) .
-	@$(SUDO) chown $(USER):$(shell id -g -n $(USER)) $@
+	$(HIDE)$(SUDO) bsdtar czf $@ -C $(BUILDDIR) .
+	$(HIDE)$(SUDO) chown $(USER):$(shell id -g -n $(USER)) $@
 	@echo "Completed: $(ARCHLINUX_ROOTFS)"
 
 $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE): $(SRCDIR)
 	$(info Downloading GNU/Linux Image: $(ARCHLINUX_SYSTEM_IMAGE_FILE))
-	@curl -L $(ARCHLINUX_SYSTEM_IMAGE_URL) -o $@
+	$(HIDE)curl -L $(ARCHLINUX_SYSTEM_IMAGE_URL) -o $@
 
 build.img:
 	$(info Creating build.img)
-	@dd if=/dev/zero of=build.img bs=1M count=$(IMGSIZE) > /dev/null 2>/dev/null
-	@mkfs.ext4 build.img > /dev/null 2>/dev/null
+	$(HIDE)dd if=/dev/zero of=build.img bs=1M count=$(IMGSIZE) > /dev/null 2>/dev/null
+	$(HIDE)mkfs.ext4 build.img > /dev/null 2>/dev/null
 
-.extract: $(SUDO) $(BUILDDIR) $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE)
+extract: $(SUDO) $(BUILDDIR) | build.img .mount-build .extract umount-build
+
+.extract: $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE)
 	$(info Extracting $(ARCHLINUX_SYSTEM_IMAGE_FILE))
-	@$(SUDO) bsdtar --numeric-owner -xzf $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE) -C $(BUILDDIR)
-	@touch .extract
+	$(HIDE)$(SUDO) bsdtar --numeric-owner -xzf $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE) -C $(BUILDDIR)
+	$(HIDE)touch .extract
 
 .mount: mount
-	@touch .mount
+	$(HIDE)touch .mount
 
 .umount: umount
-	@touch .umount
+	$(HIDE)touch .umount
 
-.mount-build: $(SUDO) build.img
-	@$(SUDO) mount -o loop build.img $(BUILDDIR)
-	@touch .mount-build
+.mount-build:
+	$(HIDE)$(SUDO) mount -o loop build.img $(BUILDDIR)
+	$(HIDE)touch .mount-build
 
-.patch-rootfs: $(SUDO) $(BUILDDIR)
+.rootfs:
 	$(info Patching rootfs)
-	@$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/chroot-builder.sh $(DEBUG) "$(DISTCC)" $(JMAKEFLAGS) $(ARMHOST) $(AUR)
-	@touch .patch-rootfs
-
-.rootfs: build.img .mount-build .extract .mount .patch-rootfs .umount
-	@touch .rootfs
+	$(HIDE)$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/chroot-builder.sh $(DEBUG) "$(DISTCC)" $(JMAKEFLAGS) $(ARMHOST) $(AUR)
+	$(HIDE)touch .rootfs
 
 .mount-manual: $(SUDO) $(QEMU) $(QEMU64) $(BUILDDIR) $(CUSTOMIZATION) $(BUILDER)
 	$(info Preparing the build)
-	@$(SUDO) mount --bind /dev $(BUILDDIR)/dev
-	@$(SUDO) mount --bind /proc $(BUILDDIR)/proc
-	@$(SUDO) mount --bind /sys $(BUILDDIR)/sys
-	@$(SUDO) mount --bind /tmp $(BUILDDIR)/tmp
-	@$(SUDO) mv $(BUILDDIR)/etc/resolv.conf $(BUILDDIR)/etc/resolv.conf.bak
-	@$(SUDO) cp /etc/resolv.conf $(BUILDDIR)/etc/resolv.conf
-	@$(SUDO) cp -r $(CUSTOMIZATION) $(BUILDDIR)/home/.customization
-	@$(SUDO) cp -r $(BUILDER) $(BUILDDIR)/home/.customization/
-	@if [ $(ARMHOST) -eq 0 ]; then \
+	$(HIDE)$(SUDO) mount --bind /dev $(BUILDDIR)/dev
+	$(HIDE)$(SUDO) mount --bind /proc $(BUILDDIR)/proc
+	$(HIDE)$(SUDO) mount --bind /sys $(BUILDDIR)/sys
+	$(HIDE)$(SUDO) mount --bind /tmp $(BUILDDIR)/tmp
+	$(HIDE)$(SUDO) mv $(BUILDDIR)/etc/resolv.conf $(BUILDDIR)/etc/resolv.conf.bak
+	$(HIDE)$(SUDO) cp /etc/resolv.conf $(BUILDDIR)/etc/resolv.conf
+	$(HIDE)$(SUDO) cp -r $(CUSTOMIZATION) $(BUILDDIR)/home/.customization
+	$(HIDE)$(SUDO) cp -r $(BUILDER) $(BUILDDIR)/home/.customization/
+	$(HIDE)if [ $(ARMHOST) -eq 0 ]; then \
 		$(SUDO) cp $(QEMU) $(BUILDDIR)/usr/bin/ ;\
 		$(SUDO) cp $(QEMU64) $(BUILDDIR)/usr/bin/ ;\
 		$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/sudo-workaround.sh $(DEBUG) install ;\
 	fi
-	@touch .mount-manual
+	$(HIDE)touch .mount-manual
 
-mount: .mount-build .mount-manual
+mount: | .mount-build .mount-manual
 
 umount: $(SUDO) $(BUILDDIR)
 	$(info Cleaning up the build)
-	@if [ $(ARMHOST) -eq 0 ]; then \
+	$(HIDE)if [ $(ARMHOST) -eq 0 ]; then \
 		$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/sudo-workaround.sh $(DEBUG) uninstall ;\
 	fi
-	@$(SUDO) umount $(BUILDDIR)/dev
-	@$(SUDO) umount $(BUILDDIR)/proc
-	@$(SUDO) umount $(BUILDDIR)/sys
-	@$(SUDO) umount $(BUILDDIR)/tmp
-	@$(SUDO) mv $(BUILDDIR)/etc/resolv.conf.bak $(BUILDDIR)/etc/resolv.conf
-	@$(SUDO) rm -rf $(BUILDDIR)/home/.customization
-	@if [ $(ARMHOST) -eq 0 ]; then \
+	$(HIDE)$(SUDO) umount $(BUILDDIR)/dev
+	$(HIDE)$(SUDO) umount $(BUILDDIR)/proc
+	$(HIDE)$(SUDO) umount $(BUILDDIR)/sys
+	$(HIDE)$(SUDO) umount $(BUILDDIR)/tmp
+	$(HIDE)$(SUDO) mv $(BUILDDIR)/etc/resolv.conf.bak $(BUILDDIR)/etc/resolv.conf
+	$(HIDE)$(SUDO) rm -rf $(BUILDDIR)/home/.customization
+	$(HIDE)if [ $(ARMHOST) -eq 0 ]; then \
 		$(SUDO) rm $(BUILDDIR)$(QEMU) ;\
 		$(SUDO) rm $(BUILDDIR)$(QEMU64) ;\
 	fi
-	@$(SUDO) umount $(BUILDDIR)
-	@rm -f .mount-manual
+	$(HIDE)$(SUDO) umount $(BUILDDIR)
+	$(HIDE)rm -f .mount-manual
+	$(HIDE)rm -f .mount-build
+
+mount-build: .mount-build
+
+umount-build:
+	$(HIDE)$(SUDO) umount $(BUILDDIR)
+	$(HIDE)rm -f .mount-build
 
 $(SRCDIR):
-	@mkdir -p $(SRCDIR)
+	$(HIDE)mkdir -p $(SRCDIR)
 
 $(BUILDDIR):
-	@mkdir -p $(BUILDDIR)
+	$(HIDE)mkdir -p $(BUILDDIR)
 
-.PHONY: clean clean-image clean-$(SCRDIR) mrproper
+.PHONY: clean clean-image clean-tgz clean-$(SCRDIR) mrproper
 
 clean: $(SUDO)
 	$(shell [ -f .mount-manual ] && make umount )
-	rm -f build.img
-	rm -f .extract
-	rm -f .mount
-	rm -f .mount-build
-	rm -f .umount
-	rm -f .patch-rootfs
-	rm -f .rootfs
+	$(HIDE)rm -f .extract
+	$(HIDE)rm -f .mount
+	$(HIDE)rm -f .mount-build
+	$(HIDE)rm -f .umount
+	$(HIDE)rm -f .rootfs
+	$(HIDE)rm -f .image
 
 clean-image:
-	rm -rf $(SRC_ARCHLINUX_SYSTEM_IMAGE_FILE)
+	$(HIDE)rm -f build.img
+
+clean-tgz:
+	$(HIDE)rm -f $(ARCHLINUX_ROOTFS)
 
 clean-$(SRCDIR):
-	rm -rf $(SRCDIR)
+	$(HIDE)rm -rf $(SRCDIR)
 
-mrproper: clean clean-$(SRCDIR)
-	rm -rf $(ARCHLINUX_ROOTFS)
+mrproper: clean clean-$(SRCDIR) clean-image clean-tgz
+
