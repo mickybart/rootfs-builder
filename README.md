@@ -34,10 +34,16 @@ If you want to set a specific MAKEFLAGS
 make MAKEFLAGS="-j6"
 ```
 
-If you want to not install AUR helper and packages
+If you don't want to install AUR helper and packages
 
 ```
 make AUR=0
+```
+
+If you want to set a bigger image file than 2GiB
+
+```
+make IMGSIZE=<size in MiB>
 ```
 
 ### Build (debug mode)
