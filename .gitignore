@@ -8,4 +8,5 @@ build.img
 .umount
 .manual-mount
 .mount-build
+.mount-manual
 .image
