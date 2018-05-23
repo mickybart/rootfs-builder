@@ -46,6 +46,12 @@ If you want to set a bigger image file than 2GiB
 make IMGSIZE=<size in MiB>
 ```
 
+If you want a specific target
+
+```
+make TARGET="x86_64|armv7"
+```
+
 ### Build (debug mode)
 
 This mode will force -ex and output of all commands into the chroot

@@ -21,8 +21,11 @@ EOF
 
 ln -s '/etc/systemd/system/netctl@eth0.service' '/etc/systemd/system/multi-user.target.wants/netctl@eth0.service'
 
+# systemd: disable persistent network names
+ln -s '/dev/null' '/etc/systemd/network/99-default.link'
+
 # systemd-resolved (disable)
-rm -f /usr/lib/systemd/system/systemd-resolved.service
+ln -s '/dev/null' /etc/systemd/system/systemd-resolved.service
 rm -f /etc/resolv.conf
 touch /etc/resolv.conf
 
@@ -31,3 +34,5 @@ groupadd -g 3003 inet
 gpasswd -a root inet
 gpasswd -a alarm inet
 
+# openssh
+ln -s '/usr/lib/systemd/system/sshd.service' '/etc/systemd/system/multi-user.target.wants/sshd.service'

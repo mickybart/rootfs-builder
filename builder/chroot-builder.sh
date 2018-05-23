@@ -34,8 +34,8 @@ if [ "$MAKEFLAGS" == "0" ]; then
 	fi
 fi
 
-# $4 is used to know if we are building the image from an ARM host or not
-ARMHOST=$4
+# $4 is used to know if we are building the image from a QEMU context
+QEMU=$4
 
 AUR=$5
 AURHELPER=pacaur
@@ -77,7 +77,7 @@ fi
 if [ $AUR -ne 0 ]; then
 	echo "(chroot) sudo configuration"
 	sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
-	if [ $ARMHOST -eq 0 ]; then
+	if [ -n "$QEMU" ]; then
 		echo "(chroot) sudo workaround in qemu context"
 		eval "sh $PWD/builder/sudo-workaround.sh $DEBUG install" $OUTPUT_FILTER
 	fi

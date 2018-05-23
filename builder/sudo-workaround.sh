@@ -26,9 +26,11 @@ EOF
 }
 
 function uninstall() {
-	rm /usr/bin/sudo
-	mv /usr/bin/sudo.workaround /usr/bin/sudo
-	rm /usr/bin/qemu-arm-staticS
+	if [ -f /usr/bin/sudo.workaround ]; then 
+		rm /usr/bin/sudo
+		mv /usr/bin/sudo.workaround /usr/bin/sudo
+		rm /usr/bin/qemu-arm-staticS
+	fi
 }
 
 # Needs sudo installed

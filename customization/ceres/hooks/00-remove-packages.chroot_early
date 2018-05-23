@@ -4,4 +4,7 @@
 if [ -f /boot/zImage ]; then
         pacman -Rcs --noconfirm $(pacman -Qqo /boot/zImage) linux-firmware mkinitcpio
 fi
+if [ -f /boot/vmlinuz-linux ]; then
+        pacman -Rcs --noconfirm $(pacman -Qqo /boot/vmlinuz-linux) linux-firmware mkinitcpio
+fi
 

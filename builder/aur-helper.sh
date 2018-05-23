@@ -22,6 +22,12 @@ function install() {
 
 	case $1 in
 		pacaur)
+			git clone https://aur.archlinux.org/cower.git
+			cd cower
+			gpg2 --receive-keys 1EB2638FF56C0C53
+			makepkg -s --asdeps --install --noconfirm
+			cd ..
+			rm -rf cower
 			git clone https://aur.archlinux.org/pacaur.git
 			cd pacaur
 			makepkg -s --install --noconfirm

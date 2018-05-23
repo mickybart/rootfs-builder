@@ -1,4 +1,4 @@
-#rootfs for Archlinux ARM
+#rootfs for Archlinux
 
 DEBUG ?= 0
 DISTCC ?= 0
@@ -6,6 +6,7 @@ JMAKEFLAGS ?= 0
 STACK ?= halium
 IMGSIZE ?= 2048
 AUR ?= 1
+TARGET ?= "armv7"
 
 ARMHOST=$(shell [ $(shell uname -m) == "armv7l" ] && echo 1 || echo 0 )
 
@@ -16,12 +17,14 @@ BUILDER=builder
 
 SUDO=/usr/bin/sudo
 
+QEMU=
+QEMU64=
+
+ifeq (,$(filter $(TARGET),x86_64))
 ifeq ($(ARMHOST),0)
 QEMU=/usr/bin/qemu-arm-static
 QEMU64=/usr/bin/qemu-aarch64-static
-else
-QEMU=
-QEMU64=
+endif
 endif
 
 ifneq ($(DEBUG),0)
@@ -30,9 +33,16 @@ else
   HIDE=@
 endif
 
-ARCHLINUX_OTA_ARCH=armv7
-ARCHLINUX_SYSTEM_IMAGE_FILE=ArchLinuxARM-$(ARCHLINUX_OTA_ARCH)-latest.tar.gz
+# Arch Linux image
+#
+ifeq ($(TARGET),armv7)
+ARCHLINUX_SYSTEM_IMAGE_FILE=ArchLinuxARM-$(TARGET)-latest.tar.gz
 ARCHLINUX_SYSTEM_IMAGE_URL=https://archlinuxarm.org/os/$(ARCHLINUX_SYSTEM_IMAGE_FILE)
+else ifeq ($(TARGET),x86_64)
+ARCHLINUX_SYSTEM_IMAGE_FILE=ArchLinux-$(TARGET)-latest.tar.gz
+else
+ARCHLINUX_SYSTEM_IMAGE_FILE=
+endif
 
 SRC_ARCHLINUX_SYSTEM_IMAGE_FILE=$(SRCDIR)/$(ARCHLINUX_SYSTEM_IMAGE_FILE)
 
@@ -81,7 +91,7 @@ extract: $(SUDO) $(BUILDDIR) | build.img .mount-build .extract umount-build
 
 .rootfs:
 	$(info Patching rootfs)
-	$(HIDE)$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/chroot-builder.sh $(DEBUG) "$(DISTCC)" $(JMAKEFLAGS) $(ARMHOST) $(AUR)
+	$(HIDE)$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/chroot-builder.sh $(DEBUG) "$(DISTCC)" $(JMAKEFLAGS) "$(QEMU)" $(AUR)
 	$(HIDE)touch .rootfs
 
 .mount-manual: $(SUDO) $(QEMU) $(QEMU64) $(BUILDDIR) $(CUSTOMIZATION) $(BUILDER)
@@ -94,7 +104,7 @@ extract: $(SUDO) $(BUILDDIR) | build.img .mount-build .extract umount-build
 	$(HIDE)$(SUDO) cp /etc/resolv.conf $(BUILDDIR)/etc/resolv.conf
 	$(HIDE)$(SUDO) cp -r $(CUSTOMIZATION) $(BUILDDIR)/home/.customization
 	$(HIDE)$(SUDO) cp -r $(BUILDER) $(BUILDDIR)/home/.customization/
-	$(HIDE)if [ $(ARMHOST) -eq 0 ]; then \
+	$(HIDE)if [ -n "$(QEMU)" ]; then \
 		$(SUDO) cp $(QEMU) $(BUILDDIR)/usr/bin/ ;\
 		$(SUDO) cp $(QEMU64) $(BUILDDIR)/usr/bin/ ;\
 		$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/sudo-workaround.sh $(DEBUG) install ;\
@@ -105,16 +115,17 @@ mount: | .mount-build .mount-manual
 
 umount: $(SUDO) $(BUILDDIR)
 	$(info Cleaning up the build)
-	$(HIDE)if [ $(ARMHOST) -eq 0 ]; then \
+	$(HIDE)if [ -n "$(QEMU)" ]; then \
 		$(SUDO) chroot $(BUILDDIR) /bin/sh /home/.customization/builder/sudo-workaround.sh $(DEBUG) uninstall ;\
 	fi
+	$(HIDE)$(SUDO) fuser -m -k $(BUILDDIR) || true
 	$(HIDE)$(SUDO) umount $(BUILDDIR)/dev
 	$(HIDE)$(SUDO) umount $(BUILDDIR)/proc
 	$(HIDE)$(SUDO) umount $(BUILDDIR)/sys
 	$(HIDE)$(SUDO) umount $(BUILDDIR)/tmp
 	$(HIDE)$(SUDO) mv $(BUILDDIR)/etc/resolv.conf.bak $(BUILDDIR)/etc/resolv.conf
 	$(HIDE)$(SUDO) rm -rf $(BUILDDIR)/home/.customization
-	$(HIDE)if [ $(ARMHOST) -eq 0 ]; then \
+	$(HIDE)if [ -n "$(QEMU)" ]; then \
 		$(SUDO) rm $(BUILDDIR)$(QEMU) ;\
 		$(SUDO) rm $(BUILDDIR)$(QEMU64) ;\
 	fi
