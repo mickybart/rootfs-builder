@@ -38,6 +38,9 @@ endif
 ifeq ($(TARGET),armv7)
 ARCHLINUX_SYSTEM_IMAGE_FILE=ArchLinuxARM-$(TARGET)-latest.tar.gz
 ARCHLINUX_SYSTEM_IMAGE_URL=https://archlinuxarm.org/os/$(ARCHLINUX_SYSTEM_IMAGE_FILE)
+else ifeq ($(TARGET),aarch64)
+ARCHLINUX_SYSTEM_IMAGE_FILE=ArchLinuxARM-$(TARGET)-latest.tar.gz
+ARCHLINUX_SYSTEM_IMAGE_URL=https://archlinuxarm.org/os/$(ARCHLINUX_SYSTEM_IMAGE_FILE)
 else ifeq ($(TARGET),x86_64)
 ARCHLINUX_SYSTEM_IMAGE_FILE=ArchLinux-$(TARGET)-latest.tar.gz
 else
