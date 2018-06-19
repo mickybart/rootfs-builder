@@ -1,0 +1,90 @@
+#!/bin/bash
+
+if ! egrep -iq "^system:" /etc/shadow; then
+    useradd -M -u 1000 system
+fi
+if ! egrep -iq "^radio:" /etc/shadow; then
+    useradd -M -u 1001 radio
+fi
+
+if egrep  -iq "^audio:" /etc/group; then
+   # Needed to change group id as audio is already created by archlinux
+   echo "User audio exists in /etc/group, changing gid to be android compatible"
+   groupmod -g 1005 audio
+else
+   echo "User audio does not exists in /etc/group must create"
+   groupadd -g 1005 audio
+fi
+if egrep  -iq "^gps:" /etc/group; then
+   echo "User gps exists in /etc/group"
+else
+   echo "User gps does not exist in /etc/group -- must create"
+   groupadd -g 1021 gps
+fi
+if egrep  -iq "^radio:" /etc/group; then
+   echo "User radio exists in /etc/group"
+else
+   echo "User radio does not exist in /etc/group -- must create"
+   groupadd -g 1001 radio
+fi
+if egrep  -iq "^bluetooth:" /etc/group; then
+   echo "User bluetooth exists in /etc/group changing ID to 1002"
+   groupmod -g 1002 bluetooth
+else
+   echo "User bluetooth does not exist in /etc/group -- must create"
+   groupadd -g 1002 bluetooth
+fi
+if egrep  -iq "^android_net:" /etc/group; then
+   echo "User android_net exists in /etc/group"
+else
+   echo "User android_net does not exist in /etc/group -- must create"
+   groupadd -g 3003 android_net
+fi
+if egrep -iq "^android_net2:" /etc/group; then
+	echo "User android_net2 exists in /etc/group"
+else
+	echo "User android_net2 does not exist in /etc group -- must create"
+	groupadd -g 3004 android_net2
+fi
+if egrep -iq "^android_net3:" /etc/group; then
+	echo "User android_net3 exists in /etc/group"
+else
+	echo "User android_net3 does not exist in /etc group -- must create"
+	groupadd -g 3002 android_net3
+fi
+if egrep -iq "^android_graphics:" /etc/group; then
+	echo "User android_graphics exists in /etc/group"
+else
+	echo "User android_graphics does not exist in /etc group -- must create"
+	groupadd -g 1003 android_graphics
+fi
+if egrep -iq "^android_input:" /etc/group; then
+	echo "User android_input exists in /etc/group"
+else
+	echo "User android_input does not exist in /etc group -- must create"
+	groupadd -g 1004 android_input
+fi
+if egrep -iq "^sdcard_rw:" /etc/group; then
+	echo "User sdcard_rw exists in /etc/group"
+else
+	echo "User sdcard_rw does not exist in /etc group -- must create"
+	groupadd -g 1015 sdcard_rw 
+fi
+if egrep -iq "^android_media:" /etc/group; then
+	echo "User android_media exists in /etc/group"
+else
+	echo "User android_media does not exist in /etc group -- must create"
+	groupadd -g 1013 android_media
+fi
+if egrep -iq "^android_nvram:" /etc/group; then
+	echo "User android_nvram exists in /etc/group"
+else
+	echo "User android_nvram does not exist in /etc group -- must create"
+	groupadd -g 9997 android_nvram
+fi
+if egrep -iq "^android_cache:" /etc/group; then
+	echo "User android_cache exists in /etc/group"
+else
+	echo "User android_cache does not exist in /etc group -- must create"
+	groupadd -g 2001 android_cache
+fi

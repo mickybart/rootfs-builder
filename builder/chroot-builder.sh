@@ -55,7 +55,7 @@ done
 
 # Update the system
 echo "(chroot) Updating all packages..."
-eval pacman -Syu --noconfirm $OUTPUT_FILTER
+eval pacman -Syyu --noconfirm $OUTPUT_FILTER
 
 # Install early minimal requirements
 echo "(chroot) Installing additional base packages"
